@@ -62,4 +62,46 @@ def api_filter():
 
     return jsonify(results)
 
+
+@app.route('/api/v1/resources/computers', methods=['GET'])
+def computer_search():
+    """
+    Example API using MSSQL connection
+    """
+    query_parameters = request.args
+    ServerName = ''
+    DatabaseName = ''
+    MSSQLengine = sqlalchemy.create_engine('mssql://' + ServerName + "/" + DatabaseName + '?driver=SQL+Server+Native+Client+11.0' + '?trusted_connection=yes')
+ 
+    computerName = query_parameters.get(‘ComputerName’)
+    ipAddress = query_parameters.get(‘IPAddress’)
+    
+    query = 'SELECT * FROM TABLENAME WHERE'
+    to_filter = []
+ 
+    if computerName:
+        query += ' ComputerName=? AND'
+        to_filter.append(computerName)
+    if ipAddress:
+        query += ' IPAddress=? AND'
+        to_filter.append(ipAddress)
+    if not (computerName or ipAddress):
+        return page_not_found(404)
+    
+    # Remove trailing space and "AND" from query, add terminating ;
+    query = query[:-4] + ';'
+ 
+    with MSSQLengine.connect() as con:
+        resultproxy = con.execute(query, to_filter)
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                d = {**d, **{column: value}}
+            a.append(d)
+ 
+    return(jsonify(a))
+
+
 app.run()
